@@ -1,0 +1,1 @@
+I'll build a calm, trustworthy pricing page for Ledgerly: three plans with the middle one highlighted, a billing toggle that shows yearly savings, and an accessible FAQ accordion.

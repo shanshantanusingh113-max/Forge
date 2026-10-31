@@ -1,0 +1,96 @@
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --text: #14161a;
+  --muted: #5d6470;
+  --line: #e3e6ec;
+  --accent: #3b5bdb;
+  --accent-ink: #ffffff;
+  --accent-soft: #edf1ff;
+  --radius: 16px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 12px 32px rgba(16, 24, 40, .08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --surface: #171a20;
+    --text: #eef0f4;
+    --muted: #9aa1ad;
+    --line: #2a2e37;
+    --accent: #7b93ff;
+    --accent-ink: #0f1115;
+    --accent-soft: #1e2440;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; }
+
+body {
+  font-family: Manrope, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+a { color: inherit; }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+
+.site-header {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 800; text-decoration: none; font-size: 18px; }
+.logo-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
+.link { color: var(--muted); text-decoration: none; font-weight: 500; }
+.link:hover { color: var(--text); }
+
+main { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+.intro { text-align: center; padding: 48px 0 40px; max-width: 640px; margin: 0 auto; }
+.intro h1 { font-size: clamp(32px, 5vw, 48px); line-height: 1.12; letter-spacing: -.02em; font-weight: 800; }
+.intro p { color: var(--muted); font-size: 18px; margin-top: 16px; }
+
+.billing { display: inline-flex; gap: 4px; padding: 4px; margin-top: 32px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; }
+.billing-option { border: 0; background: none; font: inherit; font-weight: 600; color: var(--muted); padding: 8px 18px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s; }
+.billing-option.is-active { background: var(--accent); color: var(--accent-ink); }
+.save { font-size: 12px; margin-left: 4px; opacity: .85; }
+
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; align-items: start; }
+.plan { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 32px 28px; }
+.plan-featured { border-color: var(--accent); box-shadow: var(--shadow); }
+.badge { position: absolute; top: -12px; left: 28px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
+.plan h2 { font-size: 20px; }
+.plan-for { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.price { margin-top: 24px; display: flex; align-items: baseline; gap: 6px; }
+.amount { font-size: 44px; font-weight: 800; letter-spacing: -.02em; }
+.per { color: var(--muted); }
+.billed { color: var(--muted); font-size: 13px; min-height: 1.6em; }
+
+.btn { display: block; text-align: center; margin-top: 24px; padding: 12px 16px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-weight: 700; text-decoration: none; transition: transform .15s, opacity .15s; }
+.btn:hover { transform: translateY(-1px); opacity: .92; }
+.btn-outline { background: transparent; color: var(--text); border: 1px solid var(--line); }
+
+.features { list-style: none; padding: 0; margin-top: 24px; display: grid; gap: 10px; font-size: 15px; }
+.features li { padding-left: 26px; position: relative; }
+.features li::before { content: ""; position: absolute; left: 0; top: 6px; width: 14px; height: 8px; border-left: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg); }
+
+.faq { max-width: 680px; margin: 80px auto 0; }
+.faq h2 { font-size: 28px; margin-bottom: 16px; text-align: center; }
+.faq details { border-bottom: 1px solid var(--line); padding: 18px 4px; }
+.faq summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--muted); font-size: 20px; line-height: 1; transition: transform .2s; }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { color: var(--muted); margin-top: 10px; }
+
+.site-footer { text-align: center; color: var(--muted); font-size: 14px; padding: 64px 24px 40px; }
+
+@media (max-width: 600px) {
+  .intro { padding-top: 24px; }
+  .plan { padding: 28px 22px; }
+}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing · Ledgerly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a href="#" class="logo"><span class="logo-mark" aria-hidden="true">L</span>Ledgerly</a>
+    <a href="#plans" class="link">Sign in</a>
+  </header>
+
+  <main>
+    <section class="intro">
+      <h1>Get paid faster, without the paperwork</h1>
+      <p>Send invoices in a minute, chase late payments automatically, and see what you're owed at a glance.</p>
+      <div class="billing" role="group" aria-label="Billing period">
+        <button type="button" class="billing-option is-active" data-period="monthly" aria-pressed="true">Monthly</button>
+        <button type="button" class="billing-option" data-period="yearly" aria-pressed="false">Yearly <span class="save">Save 20%</span></button>
+      </div>
+    </section>
+
+    <section id="plans" class="plans" aria-label="Plans">
+      <article class="plan">
+        <h2>Solo</h2>
+        <p class="plan-for">For freelancers just getting started</p>
+        <p class="price"><span class="amount" data-monthly="9" data-yearly="7">$9</span><span class="per">/ month</span></p>
+        <p class="billed" data-monthly="Billed monthly" data-yearly="$84 billed yearly">Billed monthly</p>
+        <a href="#" class="btn btn-outline">Start free trial</a>
+        <ul class="features">
+          <li>10 invoices a month</li>
+          <li>Card and bank payments</li>
+          <li>Automatic reminders</li>
+        </ul>
+      </article>
+
+      <article class="plan plan-featured">
+        <span class="badge">Most popular</span>
+        <h2>Studio</h2>
+        <p class="plan-for">For full-time freelancers</p>
+        <p class="price"><span class="amount" data-monthly="19" data-yearly="15">$19</span><span class="per">/ month</span></p>
+        <p class="billed" data-monthly="Billed monthly" data-yearly="$180 billed yearly">Billed monthly</p>
+        <a href="#" class="btn">Start free trial</a>
+        <ul class="features">
+          <li>Unlimited invoices</li>
+          <li>Recurring invoices and retainers</li>
+          <li>Expense tracking with receipts</li>
+          <li>Your logo and brand colors</li>
+        </ul>
+      </article>
+
+      <article class="plan">
+        <h2>Agency</h2>
+        <p class="plan-for">For small teams up to 10 people</p>
+        <p class="price"><span class="amount" data-monthly="49" data-yearly="39">$49</span><span class="per">/ month</span></p>
+        <p class="billed" data-monthly="Billed monthly" data-yearly="$468 billed yearly">Billed monthly</p>
+        <a href="#" class="btn btn-outline">Talk to us</a>
+        <ul class="features">
+          <li>Everything in Studio</li>
+          <li>Team members and roles</li>
+          <li>Client portal</li>
+          <li>Priority support</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="faq" aria-labelledby="faq-title">
+      <h2 id="faq-title">Questions</h2>
+      <details>
+        <summary>Is there a free trial?</summary>
+        <p>Yes. Every plan has a 14-day free trial, and you don't need a card to start.</p>
+      </details>
+      <details>
+        <summary>Can I change plans later?</summary>
+        <p>Any time. Upgrades apply immediately; downgrades take effect at your next billing date.</p>
+      </details>
+      <details>
+        <summary>Do you take a cut of my payments?</summary>
+        <p>No. You only pay the standard card processing fee charged by the payment provider.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer class="site-footer">© 2026 Ledgerly. Made for people who'd rather be doing the work.</footer>
+  <script src="script.js"></script>
+</body>
+</html>

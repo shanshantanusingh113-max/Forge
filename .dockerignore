@@ -1,0 +1,7 @@
+.git
+projects/*
+settings.json
+finetune/data
+finetune/output
+*.gguf
+__pycache__

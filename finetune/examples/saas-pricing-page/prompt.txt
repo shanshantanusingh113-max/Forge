@@ -1,0 +1,1 @@
+Make a pricing page for Ledgerly, an invoicing tool for freelancers. Three plans, a monthly/yearly toggle with a discount, and a short FAQ.

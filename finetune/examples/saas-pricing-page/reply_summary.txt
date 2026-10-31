@@ -1,0 +1,6 @@
+- Three plans (Solo, Studio, Agency) with Studio highlighted as most popular
+- Monthly/yearly toggle that updates every price and shows the 20% saving
+- FAQ built on native <details> elements, so it works with a keyboard and screen readers
+- Responsive from phones to desktops, with automatic dark mode
+
+Next idea: add a feature comparison table under the plans.

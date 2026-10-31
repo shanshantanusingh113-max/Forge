@@ -1,0 +1,25 @@
+# One-click deploy on Render: https://render.com → New → Blueprint → pick this repo.
+# Render asks for the values marked sync: false when you create the service.
+services:
+  - type: web
+    name: forge
+    runtime: python
+    plan: free
+    buildCommand: echo "No build step needed"
+    startCommand: python server.py --no-browser
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: FORGE_HOST
+        value: 0.0.0.0
+      - key: FORGE_PASSWORD        # the password you'll type to open Forge
+        sync: false
+      - key: FORGE_PROVIDER
+        value: openai              # any OpenAI-compatible API; use "demo" to try without a key
+      - key: FORGE_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: FORGE_MODEL           # e.g. a strong coding model id from openrouter.ai/models
+        sync: false
+      - key: FORGE_API_KEY         # your API key; stays in Render, never in the repo
+        sync: false

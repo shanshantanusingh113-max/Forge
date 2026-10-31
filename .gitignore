@@ -1,0 +1,16 @@
+# your projects and private settings (API key) stay on your computer
+projects/*
+!projects/.keep
+settings.json
+
+# fine-tuning outputs
+finetune/data/
+finetune/output/
+finetune/benchmark-*.json
+*.gguf
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store

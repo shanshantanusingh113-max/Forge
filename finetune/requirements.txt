@@ -1,0 +1,10 @@
+# Only needed for fine-tuning. The Forge app itself needs nothing but Python.
+# Install PyTorch with CUDA first if pip picks a CPU build: https://pytorch.org/get-started/locally/
+torch>=2.3
+transformers>=4.46
+peft>=0.13
+datasets>=2.20
+accelerate>=0.34
+bitsandbytes>=0.43
+safetensors
+sentencepiece
