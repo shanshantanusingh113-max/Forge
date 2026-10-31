@@ -10,6 +10,7 @@
 .store-note { font-size: 12px; color: var(--faint); padding: 0 10px 6px; }
 .page-pill { font: 12px var(--mono); color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 3px 8px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .err .btn + .btn { margin-left: 6px; }
+.banner a, .help a { color: var(--text); text-decoration-color: var(--accent); text-underline-offset: 2px; }
 @media (max-width: 900px) { .page-pill { display: none; } }
 </style>
 
@@ -105,7 +106,25 @@
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
     <div class="sheet-head"><h2 id="setTitle">Settings</h2><button class="icon-btn" id="closeSettings" aria-label="Close" data-icon="x"></button></div>
     <div class="sheet-body">
-      <div class="field">
+      <div id="apiFields" hidden>
+        <div class="sheet-body" style="padding:0">
+          <div class="field">
+            <label for="sBase">API server</label>
+            <input id="sBase" autocomplete="off" spellcheck="false" placeholder="https://openrouter.ai/api/v1">
+            <div class="help">Any OpenAI-compatible API. OpenRouter gives one key for many models, including some free ones.</div>
+          </div>
+          <div class="field">
+            <label for="sModel">Model</label>
+            <input id="sModel" autocomplete="off" spellcheck="false" placeholder="A model id, e.g. from openrouter.ai/models">
+          </div>
+          <div class="field">
+            <label for="sKey">API key</label>
+            <input id="sKey" type="password" autocomplete="off" placeholder="sk-…">
+            <div class="help">Kept only in this browser and sent only to the server above.</div>
+          </div>
+        </div>
+      </div>
+      <div class="field" id="tierField">
         <label>Model</label>
         <div class="seg" id="tierSeg">
           <button data-tier="quick"><b>Fast</b><span>Quick drafts</span></button>
@@ -325,6 +344,7 @@ const Store = {
 const S = {
   projects: [], cur: null, sample: undefined, downloads: null,
   prefs: Object.assign({ tier: 'default', auto_fix: true, max_fix_attempts: 3 }, lsGet('forge-prefs', {})),
+  api: Object.assign({ base: 'https://openrouter.ai/api/v1', model: '', key: '' }, lsGet('forge-api', {})),
   generating: false, ctrl: null,
   fixAttempts: 0, runtime: [], problems: [], loadedResolve: null,
   tab: 'preview', device: 'desktop', activeFile: null, live: null, page: 'index.html', pendingDelete: null,
@@ -500,12 +520,74 @@ const ERROR_COPY = {
   prompt_too_large: 'This project is too large to send in one request. Start a new project or ask for a smaller change.',
   refused: 'Claude declined this request. Try describing it differently.',
   empty_completion: 'No reply came back. Try asking for a smaller piece at a time.',
+  bad_key: 'The API rejected your key. Check it in Settings.',
+  no_credits: 'Your API account has run out of credits. Top it up or pick a free model in Settings.',
+  network: "Couldn't reach the API server. Check its address in Settings and your connection.",
 };
+
+/* ======================= API-key mode (outside Claude) ======================= */
+// On a normal website there is no Claude runtime, so Forge calls an
+// OpenAI-compatible API with the visitor's own key, mimicking sample()'s shape.
+const IN_CLAUDE = !!(window.claude && window.claude.use);
+const apiReady = () => !!(S.api.base && S.api.model && S.api.key);
+
+async function apiSample(input, opts) {
+  const msgs = [{ role: 'system', content: input[0].content }];
+  for (const t of input.slice(1)) {
+    const last = msgs[msgs.length - 1];
+    if (last.role === t.role) last.content += '\n\n' + t.content; else msgs.push({ role: t.role, content: t.content });
+  }
+  let text = '', finish = null, r;
+  try {
+    r = await fetch(S.api.base.replace(/\/+$/, '') + '/chat/completions', {
+      method: 'POST', signal: opts.signal,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + S.api.key, 'X-Title': 'Forge' },
+      body: JSON.stringify({ model: S.api.model, messages: msgs, stream: true, temperature: 0.3 }),
+    });
+  } catch (e) { throw { code: e.name === 'AbortError' ? 'cancelled' : 'network', message: String(e) }; }
+  if (!r.ok) {
+    const detail = (await r.text().catch(() => '')).slice(0, 300);
+    const code = r.status === 401 || r.status === 403 ? 'bad_key' : r.status === 402 ? 'no_credits' : r.status === 429 ? 'rate_limited' : 'api_error';
+    throw { code, message: `The API returned an error (${r.status}). ${detail}` };
+  }
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = '';
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (data === '[DONE]') continue;
+        let d; try { d = JSON.parse(data); } catch (_) { continue; }
+        if (d.error) throw { code: 'api_error', message: String(d.error.message || d.error), text };
+        const ch = (d.choices || [])[0];
+        if (!ch) continue;
+        if (ch.finish_reason) finish = ch.finish_reason;
+        const delta = ch.delta && ch.delta.content;
+        if (delta) { text += delta; opts.onText({ text, delta }); }
+      }
+    }
+  } catch (e) {
+    if (e && e.code) throw e;
+    throw { code: e.name === 'AbortError' ? 'cancelled' : 'network', message: String(e), text };
+  }
+  if (!text.trim()) throw { code: 'empty_completion', message: 'empty' };
+  return { text, truncated: finish === 'length' };
+}
 
 async function send(text, kind = 'user') {
   text = text.trim();
   if (!text || S.generating) return;
-  if (!S.sample) { toast('Open this page in Claude to build sites'); return; }
+  if (!S.sample) {
+    if (!IN_CLAUDE) { openSettings(); toast('Add your API key to start building'); }
+    else toast('Open this page in Claude to build sites');
+    return;
+  }
   if (!S.cur) {
     S.cur = newProjectObj(); S.projects.push(S.cur);
     history.replaceState(null, '', '#p-' + S.cur.id);
@@ -536,8 +618,8 @@ async function send(text, kind = 'user') {
     const code = e && e.code;
     am.content = code === 'refused' ? '' : (e && e.text) || am.content || '';
     if (code === 'cancelled') am.stopped = true;
-    else am.error = ERROR_COPY[code] || 'Could not reach Claude. Check your connection and try again.';
-    if (['not_granted', 'sampling_disabled'].includes(code)) { S.sample = null; updateModelChip(); }
+    else am.error = ERROR_COPY[code] || (code === 'api_error' && e.message) || 'Could not reach Claude. Check your connection and try again.';
+    if (IN_CLAUDE && ['not_granted', 'sampling_disabled'].includes(code)) { S.sample = null; updateModelChip(); }
   }
   am.streaming = false; S.live = null;
 
@@ -669,12 +751,19 @@ function renderCode(follow) {
 
 async function downloadZip() {
   if (!S.cur || !Object.keys(S.cur.files).length) { toast('Nothing to download yet'); return; }
-  if (!S.downloads || !window.JSZip) { toast('Downloads are not available in this view'); return; }
+  if ((!S.downloads && IN_CLAUDE) || !window.JSZip) { toast('Downloads are not available in this view'); return; }
   try {
     const zip = new JSZip();
     for (const [p, c] of Object.entries(S.cur.files)) zip.file(p, c);
     const blob = await zip.generateAsync({ type: 'blob' });
     const name = (S.cur.title || 'site').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase().slice(0, 40) || 'site';
+    if (!IN_CLAUDE) {  // a normal website can download directly
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name + '.zip';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      return;
+    }
     await S.downloads.save({ filename: name + '.zip', data: blob });
     toast('Saved ' + name + '.zip');
   } catch (e) {
@@ -687,17 +776,24 @@ async function downloadZip() {
 function updateModelChip() {
   const ok = !!S.sample;
   $('#modelDot').className = 'dot ' + (S.sample === undefined ? '' : ok ? 'ok' : 'bad');
-  $('#modelName').textContent = S.sample === undefined ? 'Connecting…' : ok ? `Claude · ${TIER_NAMES[S.prefs.tier]}` : 'Claude unavailable';
+  $('#modelName').textContent = !IN_CLAUDE ? (apiReady() ? S.api.model : 'Add an API key')
+    : S.sample === undefined ? 'Connecting…' : ok ? `Claude · ${TIER_NAMES[S.prefs.tier]}` : 'Claude unavailable';
   const b = $('#banner');
-  if (S.sample === null) {
+  if (!IN_CLAUDE && !apiReady()) {
+    b.innerHTML = `<span style="color:var(--accent)">${ICON.alert}</span><div><b>Connect a model to start.</b> Forge needs an API key from an AI provider. <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter</a> gives one key for many models, including some free ones.<div class="b-actions"><button class="btn primary" data-action="settings">Add API key</button></div></div>`;
+    b.hidden = false;
+  } else if (IN_CLAUDE && S.sample === null) {
     b.innerHTML = `<span style="color:var(--accent)">${ICON.alert}</span><div><b>Forge can't reach Claude in this view.</b> Open this page in the Claude app or on claude.ai, signed in, to build sites. You can still browse saved projects.</div>`;
     b.hidden = false;
   } else b.hidden = true;
-  $('#zipBtn').hidden = !S.downloads;
+  $('#zipBtn').hidden = !(S.downloads || !IN_CLAUDE);
   const notes = { cloud: 'Saved to your Claude account', local: 'Saved in this browser only', memory: 'Not saved — download sites to keep them' };
   $('#storeNote').textContent = notes[Store.mode];
 }
 function openSettings() {
+  $('#apiFields').hidden = IN_CLAUDE;
+  $('#tierField').hidden = !IN_CLAUDE;
+  $('#sBase').value = S.api.base; $('#sModel').value = S.api.model; $('#sKey').value = S.api.key;
   document.querySelectorAll('#tierSeg button').forEach(b => b.classList.toggle('active', b.dataset.tier === S.prefs.tier));
   $('#sAuto').checked = !!S.prefs.auto_fix;
   $('#sMax').value = S.prefs.max_fix_attempts;
@@ -707,6 +803,11 @@ function saveSettings() {
   const t = document.querySelector('#tierSeg button.active');
   S.prefs = { tier: t ? t.dataset.tier : 'default', auto_fix: $('#sAuto').checked, max_fix_attempts: Math.max(1, Math.min(6, +$('#sMax').value || 3)) };
   lsSet('forge-prefs', S.prefs);
+  if (!IN_CLAUDE) {
+    S.api = { base: $('#sBase').value.trim() || 'https://openrouter.ai/api/v1', model: $('#sModel').value.trim(), key: $('#sKey').value.trim() };
+    lsSet('forge-api', S.api);
+    S.sample = apiReady() ? apiSample : null;
+  }
   $('#settingsModal').hidden = true;
   updateModelChip(); toast('Settings saved');
 }
@@ -749,8 +850,9 @@ const SUGGESTIONS = [
 $('#chips').innerHTML = SUGGESTIONS.map(s => `<button class="chip" data-suggest="${esc(s)}">${ICON.spark}${esc(s.split(',')[0])}</button>`).join('');
 
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-suggest],[data-del],.proj,.file-chip,[data-tab],[data-device],[data-path],[data-tier],#copyBtn');
+  const t = e.target.closest('[data-suggest],[data-action],[data-del],.proj,.file-chip,[data-tab],[data-device],[data-path],[data-tier],#copyBtn');
   if (!t) return;
+  if (t.dataset.action === 'settings') return openSettings();
   if (t.dataset.suggest) { input.value = t.dataset.suggest; autosize(); $('#sendBtn').disabled = false; input.focus(); return; }
   if (t.dataset.del) { e.stopPropagation(); return deleteProject(t.dataset.del); }
   if (t.classList.contains('proj')) return openProject(t.dataset.id);
@@ -828,7 +930,8 @@ $('#title').onclick = () => {
   applyTheme(lsGet('forge-theme', 'auto'));
   setView(); reloadPreview(); updateModelChip();
   const useCap = (n) => (window.claude && claude.use ? claude.use(n).catch(() => null) : Promise.resolve(null));
-  useCap('sample').then(s => { S.sample = s || null; updateModelChip(); });
+  if (IN_CLAUDE) useCap('sample').then(s => { S.sample = s || null; updateModelChip(); });
+  else S.sample = apiReady() ? apiSample : null;
   useCap('downloads').then(d => { S.downloads = d || null; updateModelChip(); });
   await Store.init();
   S.projects = (await Store.list()).map(p => ({ ...p, messages: p.messages || [], files: p.files || {} }));
