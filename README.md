@@ -60,6 +60,10 @@ Newer coding models appear often — check [ollama.com/library](https://ollama.c
 | `projects/` | Your projects: `chat.json` (history) and `site/` (the files). |
 | `finetune/` | Train the model on your best results. See `finetune/README.md`. |
 
+## Forge Online (no setup)
+
+`online/forge-online.html` is a single-page version that runs inside Claude as a published artifact, with Claude as the model. Nothing to install or host. Projects save to the viewer's own Claude account, and sites download as a .zip. Rebuild it after changing the main app with `python online/build.py`.
+
 ## Put it online (Render, free)
 
 Online, Forge can't reach the Ollama on your laptop, so it uses a cloud model API instead. It's protected by a password so nobody else can spend your API credits.

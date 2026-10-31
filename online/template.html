@@ -1,0 +1,839 @@
+<title>Forge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+/*BASE_CSS*/
+<style>
+/* Forge Online: same layout as the local app; the model is Claude, reached through the page. */
+.app { height: 100%; }
+.proj .pdel.confirm { opacity: 1; color: var(--danger); background: var(--danger-soft); width: auto; padding: 3px 8px; font-size: 12px; font-weight: 600; }
+.title-input { flex: 1; min-width: 0; font: 500 15px var(--sans); color: var(--text); background: var(--raised); border: 1px solid var(--line-strong); border-radius: 8px; padding: 5px 9px; }
+.store-note { font-size: 12px; color: var(--faint); padding: 0 10px 6px; }
+.page-pill { font: 12px var(--mono); color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 3px 8px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.err .btn + .btn { margin-left: 6px; }
+@media (max-width: 900px) { .page-pill { display: none; } }
+</style>
+
+<div class="app no-project" id="app">
+  <aside class="sidebar" id="sidebar" aria-label="Projects">
+    <div class="side-top">
+      <div class="brand"><span class="logo" data-logo="16"></span>Forge</div>
+      <button class="icon-btn only-mobile" id="closeSide" aria-label="Close menu" data-icon="x"></button>
+    </div>
+    <button class="new-btn" id="newBtn"><span class="plus" data-icon="plus"></span>New project</button>
+    <div class="side-label">Projects</div>
+    <nav class="proj-list" id="projList"></nav>
+    <div class="store-note" id="storeNote"></div>
+    <div class="side-foot">
+      <button class="model-chip" id="modelChip" title="Model settings"><span class="dot" id="modelDot"></span><span id="modelName">Connecting…</span></button>
+      <button class="icon-btn" id="themeBtn" aria-label="Change theme" data-icon="theme"></button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Settings" data-icon="gear"></button>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn only-mobile" id="menuBtn" aria-label="Open menu" data-icon="menu"></button>
+      <h1 class="title" id="title" title="Click to rename"></h1>
+      <button class="pill-btn" id="previewToggle"><span data-icon="eye"></span>Preview</button>
+    </header>
+
+    <section class="welcome" id="welcome">
+      <h2 class="greet"><span class="logo" data-logo="22"></span>What should we build?</h2>
+      <p class="sub">Describe a website or app. Forge writes it, previews it, and fixes its own errors.</p>
+      <div class="banner" id="banner" hidden></div>
+      <div class="composer-slot" id="welcomeSlot"></div>
+      <div class="chips" id="chips"></div>
+    </section>
+
+    <section class="thread" id="thread" hidden><div class="msgs" id="msgs"></div></section>
+    <div class="composer-wrap" id="bottomSlot" hidden></div>
+
+    <form class="composer" id="composer">
+      <textarea id="input" rows="1" placeholder="Describe the website you want…" aria-label="Message"></textarea>
+      <div class="composer-row">
+        <span class="hint">Enter to send · Shift+Enter for a new line</span>
+        <button type="submit" class="send" id="sendBtn" aria-label="Send" disabled data-icon="up"></button>
+      </div>
+    </form>
+  </main>
+
+  <div class="resizer" id="resizer" role="separator" aria-orientation="vertical"></div>
+
+  <section class="panel" id="panel" aria-label="Preview and code">
+    <div class="panel-bar">
+      <div class="tabs" role="tablist">
+        <button class="active" data-tab="preview">Preview</button>
+        <button data-tab="code">Code</button>
+      </div>
+      <span class="page-pill" id="pagePill" hidden></span>
+      <div class="devices" id="devices">
+        <button class="icon-btn on" data-device="desktop" aria-label="Desktop width" data-icon="desktop"></button>
+        <button class="icon-btn" data-device="tablet" aria-label="Tablet width" data-icon="tablet"></button>
+        <button class="icon-btn" data-device="mobile" aria-label="Phone width" data-icon="phone"></button>
+      </div>
+      <div class="panel-actions">
+        <button class="icon-btn" id="reloadBtn" aria-label="Reload preview" data-icon="reload"></button>
+        <button class="icon-btn" id="zipBtn" aria-label="Download site as zip" data-icon="download"></button>
+        <button class="icon-btn only-mobile" id="closePanel" aria-label="Close preview" data-icon="x"></button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="preview-wrap" id="previewWrap">
+        <div class="building" id="building" hidden><span class="spin"></span><span id="buildingText">Building…</span></div>
+        <div class="frame-box" id="frameBox">
+          <iframe id="frame" title="Site preview" sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
+        </div>
+      </div>
+      <div class="code-wrap" id="codeWrap" hidden>
+        <div class="file-tabs" id="fileTabs"></div>
+        <div class="code-scroll" id="codeScroll"></div>
+      </div>
+    </div>
+    <div class="problems" id="problems" hidden>
+      <div class="problems-head">
+        <span class="ptitle" id="ptitle"></span>
+        <button class="btn" id="fixBtn">Fix with AI</button>
+        <button class="icon-btn" id="dismissProblems" aria-label="Dismiss" data-icon="x"></button>
+      </div>
+      <ul id="problemList"></ul>
+    </div>
+  </section>
+</div>
+
+<div class="modal" id="settingsModal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="sheet-head"><h2 id="setTitle">Settings</h2><button class="icon-btn" id="closeSettings" aria-label="Close" data-icon="x"></button></div>
+    <div class="sheet-body">
+      <div class="field">
+        <label>Model</label>
+        <div class="seg" id="tierSeg">
+          <button data-tier="quick"><b>Fast</b><span>Quick drafts</span></button>
+          <button data-tier="default"><b>Balanced</b><span>Recommended</span></button>
+          <button data-tier="complex"><b>Best</b><span>Slower, most capable</span></button>
+        </div>
+        <div class="help">Forge runs on Claude and uses your own Claude plan's usage.</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="sAuto"> Fix errors automatically</label>
+      <div class="field"><label for="sMax">Max auto-fix attempts per request</label><input id="sMax" type="number" min="1" max="6"></div>
+      <div class="field"><label>Run it on your own computer</label><div class="help">The full version, with free local models through Ollama and a fine-tuning kit, is on GitHub: <a href="https://github.com/shanshantanusingh113-max/Forge" target="_blank" rel="noopener">shanshantanusingh113-max/Forge</a></div></div>
+    </div>
+    <div class="sheet-foot"><button class="btn primary" id="saveSettings">Save</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/*SHARED_ICONS*/
+
+/* ======================= helpers ======================= */
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+let toastTimer;
+function toast(msg, ms = 2600) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+const isMobile = () => matchMedia('(max-width: 900px)').matches;
+const uid = () => Math.random().toString(16).slice(2, 14).padEnd(12, '0');
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (_) { return false; } };
+
+/* ======================= the model's instructions ======================= */
+const SYSTEM_PROMPT = /*SYSTEM_PROMPT*/;
+const ONLINE_NOTE = `\n## This preview\n- External images cannot load here. Use inline SVG, CSS gradients, emoji-free icons drawn in SVG, or data: URIs instead of image URLs.\n- Scripts may load only from cdnjs.cloudflare.com, cdn.jsdelivr.net or unpkg.com; fonts only from Google Fonts.\n- Keep each reply focused: if a site needs many files, build the core first and say what you'll add next.\n`;
+
+function formatContext(files, limit = 60000) {
+  const paths = Object.keys(files);
+  if (!paths.length) return '## Current project files\n\nThe project is empty. Start with index.html.';
+  let used = 0;
+  const parts = paths.map(p => {
+    const c = files[p];
+    if (used + c.length > limit) return `<file path="${p}">\n[too long to show — ${c.length} chars]\n</file>`;
+    used += c.length;
+    return `<file path="${p}">\n${c}</file>`;
+  });
+  return '## Current project files\n\n' + parts.join('\n\n');
+}
+
+/* ======================= output parsing & checks ======================= */
+const FILE_RE = /<file\s+path\s*=\s*["']([^"']+)["']\s*>([\s\S]*?)(<\/file>|$)/g;
+const DONE_FILE_RE = /<file\s+path\s*=\s*["']([^"']+)["']\s*>[ \t]*\n?([\s\S]*?)<\/file>/g;
+
+function safePath(p) {
+  p = String(p || '').trim().replace(/\\/g, '/').replace(/^(\.\/)+/, '').replace(/^\/+/, '');
+  if (!p || p.split('/').includes('..') || !/^[A-Za-z0-9_\-./ ]+$/.test(p)) return null;
+  return p;
+}
+function stripFence(body) {
+  let s = body.replace(/^\n+|\n+$/g, '');
+  const m = s.match(/^\s*```[\w+-]*\s*\n([\s\S]*?)\n?```\s*$/);
+  return (m ? m[1] : s).replace(/\s+$/, '') + '\n';
+}
+function extractFiles(text) {
+  const out = [];
+  for (const m of text.matchAll(DONE_FILE_RE)) { const p = safePath(m[1]); if (p) out.push([p, stripFence(m[2])]); }
+  if (!out.length) {
+    const f = text.match(/```(?:html)?\s*\n([\s\S]*?)```/i);
+    if (f && /<!doctype html|<html/i.test(f[1])) out.push(['index.html', f[1].replace(/\s+$/, '') + '\n']);
+  }
+  return out;
+}
+function summarizeForHistory(text) { return text.replace(DONE_FILE_RE, (m, p) => `[wrote ${p}]`); }
+
+const isExternal = (r) => /^(https?:|\/\/|data:|mailto:|tel:|javascript:|blob:|#|\{|\$)/i.test(r.trim());
+function resolveRef(fromPage, ref) {
+  const base = fromPage.includes('/') ? fromPage.slice(0, fromPage.lastIndexOf('/') + 1) : '';
+  const parts = [];
+  for (const seg of (ref.startsWith('/') ? ref.slice(1) : base + ref).split('/')) {
+    if (seg === '..') parts.pop(); else if (seg && seg !== '.') parts.push(seg);
+  }
+  let p = parts.join('/');
+  if (!p || ref.endsWith('/')) p = (p ? p + '/' : '') + 'index.html';
+  return p;
+}
+
+function checkSite(files, reply, truncated) {
+  const issues = [];
+  const opened = (reply.match(/<file\s+path/g) || []).length;
+  const closed = [...reply.matchAll(DONE_FILE_RE)].length;
+  if (opened > closed || truncated) issues.push('A file was cut off before </file> (the reply hit its length limit). Rewrite that file completely, keeping it shorter if needed.');
+  const paths = Object.keys(files);
+  if (paths.length && !files['index.html']) issues.push('There is no index.html entry page.');
+  for (const [path, content] of Object.entries(files)) {
+    if (/\.html?$/.test(path)) {
+      const refs = new Set([...content.matchAll(/(?:src|href)\s*=\s*["']([^"'#?]+)/gi)].map(m => m[1].trim()));
+      for (const r of refs) {
+        if (!r || isExternal(r)) continue;
+        const t = resolveRef(path, r);
+        if (!(t in files)) issues.push(`${path} links to '${r}', but that file does not exist.`);
+      }
+    }
+    if (/\.js$/.test(path) && !/^\s*(import|export)\s/m.test(content)) {
+      try { new Function(content); } catch (e) { issues.push(`${e.name}: ${e.message} in ${path}`); }
+    }
+  }
+  return issues;
+}
+
+/* ======================= preview bundling ======================= */
+const PROBE = `<script>(function(){
+function send(k,m){try{parent.postMessage({forge:1,kind:k,msg:String(m).slice(0,600)},'*')}catch(e){}}
+try{window.localStorage.getItem('_')}catch(e){var mk=function(){var d={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(d,k)?d[k]:null},setItem:function(k,v){d[k]=String(v)},removeItem:function(k){delete d[k]},clear:function(){d={}},key:function(i){return Object.keys(d)[i]||null},get length(){return Object.keys(d).length}}};
+ try{Object.defineProperty(window,'localStorage',{value:mk(),configurable:true});Object.defineProperty(window,'sessionStorage',{value:mk(),configurable:true});}catch(_){}}
+window.addEventListener('error',function(e){var t=e.target;
+ if(t&&t!==window&&(t.src||t.href)){if(t.tagName==='SCRIPT')send('resource','Failed to load script '+(t.src||t.href));return;}
+ send('runtime',(e.message||'Script error')+(e.lineno?' (line '+e.lineno+')':''));},true);
+window.addEventListener('unhandledrejection',function(e){var r=e.reason;send('runtime','Unhandled promise rejection: '+(r&&r.message||r));});
+var ce=console.error;console.error=function(){try{send('console',[].map.call(arguments,function(a){return a&&a.message||String(a)}).join(' '))}catch(_){}return ce.apply(console,arguments);};
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href')||'';
+ if(!h||h.charAt(0)==='#'||/^(https?:|mailto:|tel:|javascript:|\\/\\/)/i.test(h))return;e.preventDefault();send('nav',h);},true);
+window.addEventListener('load',function(){send('loaded','')});
+})();<\/script>`;
+
+function bundle(files, page) {
+  let html = files[page];
+  if (html == null) {
+    return `<!doctype html><meta name=viewport content="width=device-width"><body style="font:15px system-ui;color:#8a847c;display:grid;place-items:center;height:100vh;margin:0;text-align:center;padding:16px">${Object.keys(files).length ? 'This page does not exist yet.' : 'Your site will appear here.'}</body>`;
+  }
+  html = html.replace(/<link\b[^>]*?href\s*=\s*["']([^"']+)["'][^>]*>/gi, (tag, href) => {
+    if (!/stylesheet/i.test(tag) || isExternal(href)) return tag;
+    const c = files[resolveRef(page, href)];
+    return c == null ? tag : `<style>\n${c}</style>`;
+  });
+  html = html.replace(/<script\b([^>]*?)\bsrc\s*=\s*["']([^"']+)["']([^>]*)>\s*<\/script>/gi, (tag, a, src, b) => {
+    if (isExternal(src)) return tag;
+    const c = files[resolveRef(page, src)];
+    if (c == null) return tag;
+    const mod = /type\s*=\s*["']module/i.test(a + b) ? ' type="module"' : '';
+    return `<script${mod}>\n${c.replace(/<\/script/gi, '<\\/script')}<\/script>`;
+  });
+  html = html.replace(/(src|href)\s*=\s*["']([^"']+\.svg)["']/gi, (m, attr, ref) => {
+    if (isExternal(ref)) return m;
+    const c = files[resolveRef(page, ref)];
+    return c == null ? m : `${attr}="data:image/svg+xml;charset=utf-8,${encodeURIComponent(c)}"`;
+  });
+  const h = html.match(/<head[^>]*>/i);
+  return h ? html.slice(0, h.index + h[0].length) + PROBE + html.slice(h.index + h[0].length) : PROBE + html;
+}
+
+/* ======================= storage ======================= */
+// Signed in through Claude: each viewer's projects live in their own private store.
+// Elsewhere: this browser only.
+const Store = {
+  mode: 'memory', col: null, queue: Promise.resolve(),
+  async init() {
+    try {
+      if (window.claude && claude.use) {
+        const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+        const id = db && user ? await user.id() : null;
+        if (id) { this.col = db.collection('data/users/' + id); this.mode = 'cloud'; return; }
+      }
+    } catch (_) {}
+    this.mode = lsSet('forge-probe', 1) ? 'local' : 'memory';
+  },
+  async list() {
+    if (this.mode === 'cloud') {
+      try {
+        const snap = await this.col.where('kind', '==', 'project').get();
+        return snap.docs.map(d => ({ id: d.id.replace(/^proj-/, ''), ...structuredClone(d.data()) }));
+      } catch (e) { console.warn('load failed', e); this.mode = 'local'; }
+    }
+    return lsGet('forge-projects', []);
+  },
+  body(p) {
+    const msgs = p.messages.filter(m => !m.streaming).map(m => {
+      const o = { role: m.role, content: m.role === 'assistant' ? m.content.replace(DONE_FILE_RE, (x, path, body) => `<file path="${path}">\n</file>`) : m.content };
+      if (m.role === 'assistant') o.lines = Object.fromEntries([...m.content.matchAll(DONE_FILE_RE)].map(x => [x[1], x[2].split('\n').length]));
+      for (const k of ['auto', 'error', 'stopped']) if (m[k]) o[k] = m[k];
+      return o;
+    });
+    let body = { kind: 'project', title: p.title, updated: p.updated, files: p.files, messages: msgs.slice(-60) };
+    while (JSON.stringify(body).length > 240000 && body.messages.length > 2) body.messages = body.messages.slice(4);
+    return body;
+  },
+  save(p) {
+    const body = this.body(p);
+    this.queue = this.queue.then(async () => {
+      if (this.mode === 'cloud') {
+        try { await this.col.doc('proj-' + p.id).set(body); return; }
+        catch (e) {
+          if (e && e.code === 'invalid_argument') toast('This project is too large to save. Download it to keep a copy.', 5000);
+          else if (e && e.code === 'quota_exceeded') toast('Storage is full. Delete old projects to save new ones.', 5000);
+          else toast('Could not save. Your work stays open on this page.', 4000);
+          return;
+        }
+      }
+      const all = lsGet('forge-projects', []).filter(x => x.id !== p.id);
+      all.unshift({ id: p.id, ...body });
+      if (!lsSet('forge-projects', all.slice(0, 30))) lsSet('forge-projects', all.slice(0, 5));
+    });
+    return this.queue;
+  },
+  remove(id) {
+    this.queue = this.queue.then(async () => {
+      if (this.mode === 'cloud') { try { await this.col.doc('proj-' + id).delete(); } catch (_) {} return; }
+      lsSet('forge-projects', lsGet('forge-projects', []).filter(x => x.id !== id));
+    });
+    return this.queue;
+  },
+};
+
+/* ======================= state ======================= */
+const S = {
+  projects: [], cur: null, sample: undefined, downloads: null,
+  prefs: Object.assign({ tier: 'default', auto_fix: true, max_fix_attempts: 3 }, lsGet('forge-prefs', {})),
+  generating: false, ctrl: null,
+  fixAttempts: 0, runtime: [], problems: [], loadedResolve: null,
+  tab: 'preview', device: 'desktop', activeFile: null, live: null, page: 'index.html', pendingDelete: null,
+};
+const TIER_NAMES = { quick: 'Fast', default: 'Balanced', complex: 'Best' };
+
+/* ======================= markdown ======================= */
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*\w])\*([^*\n]+)\*(?!\w)/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function md(src) {
+  const blocks = [];
+  src = src.replace(/```[\w+-]*[ \t]*\n?([\s\S]*?)(```|$)/g, (m, code) => {
+    blocks.push(`<pre class="code"><code>${esc(code.replace(/\n$/, ''))}</code></pre>`);
+    return `\n\u0000${blocks.length - 1}\u0000\n`;
+  });
+  let html = '', list = null, para = [];
+  const endPara = () => { if (para.length) { html += `<p>${para.map(inline).join('<br>')}</p>`; para = []; } };
+  const endList = () => { if (list) { html += `</${list}>`; list = null; } };
+  for (const raw of src.split('\n')) {
+    const line = raw.trimEnd(); let m;
+    if ((m = line.match(/^\u0000(\d+)\u0000$/))) { endPara(); endList(); html += blocks[+m[1]]; continue; }
+    if (!line.trim()) { endPara(); endList(); continue; }
+    if ((m = line.match(/^(#{1,4})\s+(.*)/))) { endPara(); endList(); const lv = Math.min(4, m[1].length + 1); html += `<h${lv}>${inline(m[2])}</h${lv}>`; continue; }
+    if ((m = line.match(/^\s*[-*•]\s+(.*)/))) { endPara(); if (list !== 'ul') { endList(); html += '<ul>'; list = 'ul'; } html += `<li>${inline(m[1])}</li>`; continue; }
+    if ((m = line.match(/^\s*\d+[.)]\s+(.*)/))) { endPara(); if (list !== 'ol') { endList(); html += '<ol>'; list = 'ol'; } html += `<li>${inline(m[1])}</li>`; continue; }
+    endList(); para.push(line);
+  }
+  endPara(); endList();
+  return html;
+}
+
+/* ======================= rendering ======================= */
+function renderAI(m) {
+  const t = m.content || '';
+  let html = '', chips = [], last = 0, mm;
+  const flush = () => { if (chips.length) { html += `<div class="files-card">${chips.join('')}</div>`; chips = []; } };
+  FILE_RE.lastIndex = 0;
+  while ((mm = FILE_RE.exec(t))) {
+    const before = t.slice(last, mm.index);
+    if (before.trim()) { flush(); html += md(before); }
+    const done = !!mm[3];
+    const lines = (m.lines && m.lines[mm[1]]) || mm[2].replace(/^\n/, '').split('\n').length;
+    chips.push(`<button class="file-chip ${done ? 'done' : 'writing'}" data-file="${esc(mm[1])}">
+      ${done ? ICON.check : '<span class="spin"></span>'}
+      <span class="fname">${esc(mm[1])}</span><span class="fmeta">${done ? lines + ' lines' : 'writing… ' + lines}</span></button>`);
+    last = FILE_RE.lastIndex;
+    if (!done) { last = t.length; break; }
+  }
+  let rest = t.slice(last);
+  if (m.streaming) rest = rest.replace(/<[^>\n]*$/, '');
+  if (rest.trim()) { flush(); html += md(rest); }
+  flush();
+  if (m.streaming && !t) html += `<div class="typing" title="${S.prefs.tier === 'quick' ? 'Writing' : 'Thinking'}"><i></i><i></i><i></i></div>`;
+  if (m.error) html += `<div class="err">${esc(m.error)}</div>`;
+  if (m.stopped) html += '<div class="note-line">Stopped.</div>';
+  return html;
+}
+
+function msgEl(m) {
+  const el = document.createElement('div');
+  if (m.role === 'user' && m.auto) {
+    const items = m.content.split('\n').filter(l => l.startsWith('- ')).map(l => l.slice(2));
+    el.className = 'msg fix';
+    el.innerHTML = `<details><summary>${ICON.wrench}<span>Auto-fix: sent ${items.length} problem${items.length === 1 ? '' : 's'} back to the model</span></summary>
+      <ul>${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul></details>`;
+  } else if (m.role === 'user') {
+    el.className = 'msg user';
+    el.innerHTML = `<div class="bubble">${esc(m.content)}</div>`;
+  } else {
+    el.className = 'msg ai';
+    el.innerHTML = `<div class="ai-mark">${LOGO(15)}</div><div class="ai-body">${renderAI(m)}</div>`;
+  }
+  m._el = el;
+  return el;
+}
+function renderMessages() {
+  const box = $('#msgs'); box.innerHTML = '';
+  (S.cur?.messages || []).forEach(m => box.appendChild(msgEl(m)));
+  scrollDown(true);
+}
+let rafPending = false;
+function renderStreaming(m) {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => {
+    rafPending = false;
+    const near = nearBottom();
+    m._el.querySelector('.ai-body').innerHTML = renderAI(m);
+    if (near) scrollDown();
+    updateLiveFile(m.content);
+  });
+}
+function nearBottom() { const t = $('#thread'); return t.scrollHeight - t.scrollTop - t.clientHeight < 140; }
+function scrollDown(force) { const t = $('#thread'); if (force || nearBottom()) t.scrollTop = t.scrollHeight; }
+
+function renderProjects() {
+  const list = $('#projList');
+  const ps = [...S.projects].sort((a, b) => b.updated - a.updated);
+  if (!ps.length) { list.innerHTML = '<div class="proj-empty">No projects yet</div>'; return; }
+  list.innerHTML = ps.map(p => `
+    <div class="proj ${p === S.cur ? 'active' : ''}" data-id="${p.id}" role="button" tabindex="0">
+      <span class="pname">${esc(p.title || 'Untitled')}</span>
+      <button class="pdel ${S.pendingDelete === p.id ? 'confirm' : ''}" data-del="${p.id}" aria-label="Delete project">${S.pendingDelete === p.id ? 'Delete?' : ICON.trash}</button>
+    </div>`).join('');
+}
+
+function setView() {
+  const has = !!S.cur;
+  $('#app').classList.toggle('no-project', !has);
+  $('#welcome').hidden = has;
+  $('#thread').hidden = !has;
+  $('#bottomSlot').hidden = !has;
+  (has ? $('#bottomSlot') : $('#welcomeSlot')).appendChild($('#composer'));
+  $('#input').placeholder = has ? 'Ask for a change, a new page, or a fix…' : 'Describe the website you want…';
+  $('#title').textContent = has ? (S.cur.title || 'New project') : '';
+  renderProjects();
+}
+
+/* ======================= projects ======================= */
+function newProjectObj() { return { id: uid(), title: 'New project', updated: Date.now(), files: {}, messages: [] }; }
+
+function openProject(id) {
+  if (S.generating) { toast('Wait for the current reply to finish'); return; }
+  const p = S.projects.find(x => x.id === id);
+  if (!p) return;
+  S.cur = p; S.fixAttempts = 0; S.runtime = []; S.page = 'index.html'; S.activeFile = null;
+  setProblems([]); setView(); renderMessages(); renderCode(); reloadPreview();
+  if (location.hash !== '#p-' + id) history.replaceState(null, '', '#p-' + id);
+  $('#app').classList.remove('side-open', 'panel-open');
+}
+function newProject() {
+  if (S.generating) return;
+  S.cur = null; setProblems([]); setView();
+  history.replaceState(null, '', location.pathname + location.search);
+  $('#app').classList.remove('side-open', 'panel-open');
+  $('#input').focus();
+}
+function deleteProject(id) {
+  if (S.pendingDelete !== id) {
+    S.pendingDelete = id; renderProjects();
+    setTimeout(() => { if (S.pendingDelete === id) { S.pendingDelete = null; renderProjects(); } }, 3000);
+    return;
+  }
+  S.pendingDelete = null;
+  S.projects = S.projects.filter(p => p.id !== id);
+  Store.remove(id);
+  if (S.cur && S.cur.id === id) newProject(); else renderProjects();
+  toast('Project deleted');
+}
+
+/* ======================= chat ======================= */
+function buildInput(p) {
+  let hist = p.messages.filter(m => !m.streaming && (m.content || '').trim()).slice(-10);
+  while (hist.length && hist[0].role !== 'user') hist = hist.slice(1);
+  const turns = hist.map(m => ({ role: m.role, content: m.role === 'assistant' ? (summarizeForHistory(m.content).trim() || '(no reply)') : m.content }));
+  for (const limit of [60000, 30000, 12000, 4000]) {
+    const input = [{ role: 'user', content: SYSTEM_PROMPT + ONLINE_NOTE + '\n' + formatContext(p.files, limit) }, ...turns];
+    if (new Blob([JSON.stringify(input)]).size < 240000) return input;
+  }
+  return [{ role: 'user', content: SYSTEM_PROMPT + ONLINE_NOTE + '\n' + formatContext(p.files, 2000) }, turns[turns.length - 1]];
+}
+
+const ERROR_COPY = {
+  not_granted: 'Forge needs your permission to use Claude. Reload the page and choose Allow when asked.',
+  sampling_disabled: 'Claude is not available for this account, so Forge cannot build here.',
+  rate_limited: 'You have reached a usage limit. Wait a little, then send your message again.',
+  session_expired: 'Your Claude session expired. Sign in again, then retry.',
+  prompt_too_large: 'This project is too large to send in one request. Start a new project or ask for a smaller change.',
+  refused: 'Claude declined this request. Try describing it differently.',
+  empty_completion: 'No reply came back. Try asking for a smaller piece at a time.',
+};
+
+async function send(text, kind = 'user') {
+  text = text.trim();
+  if (!text || S.generating) return;
+  if (!S.sample) { toast('Open this page in Claude to build sites'); return; }
+  if (!S.cur) {
+    S.cur = newProjectObj(); S.projects.push(S.cur);
+    history.replaceState(null, '', '#p-' + S.cur.id);
+    setView(); renderMessages(); renderCode(); reloadPreview();
+  }
+  const p = S.cur;
+  if (kind === 'user') {
+    S.fixAttempts = 0; setProblems([]);
+    if (p.title === 'New project') { p.title = text.replace(/\s+/g, ' ').slice(0, 48).replace(/[.\s]+$/, ''); $('#title').textContent = p.title; }
+  }
+  const um = { role: 'user', content: text, auto: kind === 'fix' };
+  p.messages.push(um);
+  const input = buildInput(p);
+  const am = { role: 'assistant', content: '', streaming: true };
+  p.messages.push(am);
+  $('#msgs').append(msgEl(um), msgEl(am));
+  scrollDown(true); setGenerating(true); renderProjects();
+
+  S.ctrl = new AbortController();
+  let truncated = false;
+  try {
+    const res = await S.sample(input, {
+      signal: S.ctrl.signal, cache: false, modelTier: S.prefs.tier,
+      onText: ({ text }) => { am.content = text; renderStreaming(am); },
+    });
+    am.content = res.text; truncated = !!res.truncated;
+  } catch (e) {
+    const code = e && e.code;
+    am.content = code === 'refused' ? '' : (e && e.text) || am.content || '';
+    if (code === 'cancelled') am.stopped = true;
+    else am.error = ERROR_COPY[code] || 'Could not reach Claude. Check your connection and try again.';
+    if (['not_granted', 'sampling_disabled'].includes(code)) { S.sample = null; updateModelChip(); }
+  }
+  am.streaming = false; S.live = null;
+
+  const written = [];
+  for (const [path, content] of extractFiles(am.content)) { p.files[path] = content; written.push(path); }
+  if (written.length) p.files = Object.fromEntries(Object.entries(p.files).sort((a, b) => (a[0] !== 'index.html') - (b[0] !== 'index.html') || a[0].localeCompare(b[0])));
+  const issues = (written.length || am.content) && !am.error ? checkSite(p.files, am.content, truncated) : [];
+  p.updated = Date.now();
+  am._el.querySelector('.ai-body').innerHTML = renderAI(am);
+  setGenerating(false);
+  renderCode(); renderProjects();
+  Store.save(p);
+  if (S.cur !== p) return;
+  if (written.length || issues.length) {
+    if (isMobile() && written.length && !$('#app').classList.contains('panel-open')) toast('Site updated — tap Preview to see it');
+    await verify(issues, written.length > 0);
+  }
+}
+
+function setGenerating(on) {
+  S.generating = on;
+  const b = $('#sendBtn');
+  b.classList.toggle('stop', on);
+  b.innerHTML = on ? ICON.stop : ICON.up;
+  b.setAttribute('aria-label', on ? 'Stop' : 'Send');
+  b.disabled = on ? false : !$('#input').value.trim();
+  $('#building').hidden = !on;
+  $('#buildingText').textContent = 'Writing code…';
+  $('#fixBtn').disabled = on;
+}
+function stop() { if (S.ctrl) S.ctrl.abort(); }
+
+/* ======================= verify & auto-fix ======================= */
+async function verify(staticIssues, reload) {
+  S.runtime = [];
+  if (reload) {
+    $('#building').hidden = false; $('#buildingText').textContent = 'Checking the preview…';
+    const loaded = new Promise(res => (S.loadedResolve = res));
+    S.page = S.cur.files[S.page] != null ? S.page : 'index.html';
+    reloadPreview();
+    await Promise.race([loaded.then(() => sleep(1800)), sleep(9000)]);
+    S.loadedResolve = null;
+    $('#building').hidden = true;
+  }
+  const problems = [...new Set([...staticIssues, ...S.runtime])];
+  setProblems(problems);
+  if (!problems.length) return;
+  const max = +S.prefs.max_fix_attempts || 3;
+  if (S.prefs.auto_fix && S.fixAttempts < max && S.sample) {
+    S.fixAttempts++;
+    await sleep(400);
+    await send(fixPrompt(problems), 'fix');
+  } else if (S.prefs.auto_fix && S.fixAttempts >= max) {
+    $('#ptitle').lastChild.textContent = ` ${problems.length} problem${problems.length > 1 ? 's' : ''} left after ${max} auto-fix attempts`;
+  }
+}
+function fixPrompt(problems) {
+  return `[auto-fix] The live preview reported these problems:\n${problems.map(p => '- ' + p).join('\n')}\n\nFind the root cause of each in the current files and fix it. Output only the files you change, complete.`;
+}
+function setProblems(list) {
+  S.problems = list;
+  $('#problems').hidden = !list.length;
+  if (!list.length) return;
+  $('#ptitle').innerHTML = `${ICON.alert}<span> ${list.length} problem${list.length > 1 ? 's' : ''} found</span>`;
+  $('#problemList').innerHTML = list.map(p => `<li>${esc(p)}</li>`).join('');
+}
+
+window.addEventListener('message', (e) => {
+  if (e.source !== $('#frame').contentWindow || !e.data || !e.data.forge) return;
+  const { kind, msg } = e.data;
+  if (kind === 'loaded') { if (S.loadedResolve) S.loadedResolve(); return; }
+  if (kind === 'nav') {
+    const target = resolveRef(S.page, msg.split(/[?#]/)[0]);
+    if (S.cur && S.cur.files[target] != null) { S.page = target; reloadPreview(); }
+    else toast(`'${msg}' isn't a page in this site yet`);
+    return;
+  }
+  const label = kind === 'console' ? 'console.error: ' + msg : msg;
+  if (S.loadedResolve) { S.runtime.push(label); return; }
+  if (!S.generating && !S.problems.includes(label)) setProblems([...S.problems, label]);
+});
+
+/* ======================= preview & code ======================= */
+function reloadPreview() {
+  const files = S.cur ? S.cur.files : {};
+  $('#frame').srcdoc = bundle(files, S.page);
+  const pill = $('#pagePill');
+  pill.hidden = !S.cur || S.page === 'index.html';
+  pill.textContent = S.page;
+}
+function setTab(tab) {
+  S.tab = tab;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  $('#previewWrap').hidden = tab !== 'preview';
+  $('#codeWrap').hidden = tab !== 'code';
+  $('#devices').style.visibility = tab === 'preview' ? 'visible' : 'hidden';
+  if (tab === 'code') renderCode();
+}
+function setDevice(d) {
+  S.device = d;
+  $('#frameBox').className = 'frame-box ' + d;
+  document.querySelectorAll('#devices button').forEach(b => b.classList.toggle('on', b.dataset.device === d));
+}
+function updateLiveFile(text) {
+  FILE_RE.lastIndex = 0;
+  let mm, live = null;
+  while ((mm = FILE_RE.exec(text))) { if (!mm[3]) { live = { path: mm[1], content: mm[2].replace(/^\n/, '') }; break; } }
+  S.live = live;
+  if (live && S.tab === 'code') { S.activeFile = live.path; renderCode(true); }
+}
+function renderCode(follow) {
+  const files = { ...(S.cur ? S.cur.files : {}) };
+  if (S.live && !(S.live.path in files)) files[S.live.path] = '';
+  const paths = Object.keys(files);
+  if (!paths.length) {
+    $('#fileTabs').innerHTML = '';
+    $('#codeScroll').innerHTML = '<div class="code-empty">No files yet. Ask Forge to build something.</div>';
+    return;
+  }
+  if (!S.activeFile || !(S.activeFile in files)) S.activeFile = paths[0];
+  $('#fileTabs').innerHTML = paths.map(p => `<button class="ft ${p === S.activeFile ? 'active' : ''}" data-path="${esc(p)}">${esc(p)}</button>`).join('')
+    + `<button class="icon-btn copy" id="copyBtn" aria-label="Copy file">${ICON.copy}</button>`;
+  const content = S.live && S.live.path === S.activeFile ? S.live.content : files[S.activeFile];
+  const lines = content.replace(/\n$/, '').split('\n');
+  const sc = $('#codeScroll');
+  sc.innerHTML = `<pre class="gutter">${lines.map((_, i) => i + 1).join('\n')}</pre><pre class="src"><code>${esc(lines.join('\n'))}</code></pre>`;
+  if (follow) sc.scrollTop = sc.scrollHeight;
+}
+
+async function downloadZip() {
+  if (!S.cur || !Object.keys(S.cur.files).length) { toast('Nothing to download yet'); return; }
+  if (!S.downloads || !window.JSZip) { toast('Downloads are not available in this view'); return; }
+  try {
+    const zip = new JSZip();
+    for (const [p, c] of Object.entries(S.cur.files)) zip.file(p, c);
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const name = (S.cur.title || 'site').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase().slice(0, 40) || 'site';
+    await S.downloads.save({ filename: name + '.zip', data: blob });
+    toast('Saved ' + name + '.zip');
+  } catch (e) {
+    if (e && e.code === 'declined') return;
+    toast('Download did not complete');
+  }
+}
+
+/* ======================= settings & status ======================= */
+function updateModelChip() {
+  const ok = !!S.sample;
+  $('#modelDot').className = 'dot ' + (S.sample === undefined ? '' : ok ? 'ok' : 'bad');
+  $('#modelName').textContent = S.sample === undefined ? 'Connecting…' : ok ? `Claude · ${TIER_NAMES[S.prefs.tier]}` : 'Claude unavailable';
+  const b = $('#banner');
+  if (S.sample === null) {
+    b.innerHTML = `<span style="color:var(--accent)">${ICON.alert}</span><div><b>Forge can't reach Claude in this view.</b> Open this page in the Claude app or on claude.ai, signed in, to build sites. You can still browse saved projects.</div>`;
+    b.hidden = false;
+  } else b.hidden = true;
+  $('#zipBtn').hidden = !S.downloads;
+  const notes = { cloud: 'Saved to your Claude account', local: 'Saved in this browser only', memory: 'Not saved — download sites to keep them' };
+  $('#storeNote').textContent = notes[Store.mode];
+}
+function openSettings() {
+  document.querySelectorAll('#tierSeg button').forEach(b => b.classList.toggle('active', b.dataset.tier === S.prefs.tier));
+  $('#sAuto').checked = !!S.prefs.auto_fix;
+  $('#sMax').value = S.prefs.max_fix_attempts;
+  $('#settingsModal').hidden = false;
+}
+function saveSettings() {
+  const t = document.querySelector('#tierSeg button.active');
+  S.prefs = { tier: t ? t.dataset.tier : 'default', auto_fix: $('#sAuto').checked, max_fix_attempts: Math.max(1, Math.min(6, +$('#sMax').value || 3)) };
+  lsSet('forge-prefs', S.prefs);
+  $('#settingsModal').hidden = true;
+  updateModelChip(); toast('Settings saved');
+}
+
+/* ======================= theme ======================= */
+const THEMES = ['auto', 'light', 'dark'];
+function applyTheme(t) {
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.dataset.theme = t;
+  lsSet('forge-theme', t);
+  $('#themeBtn').title = 'Theme: ' + t;
+}
+
+/* ======================= events ======================= */
+const input = $('#input');
+function autosize() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 240) + 'px'; }
+input.addEventListener('input', () => { autosize(); if (!S.generating) $('#sendBtn').disabled = !input.value.trim(); });
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !isMobile()) { e.preventDefault(); $('#composer').requestSubmit(); }
+});
+$('#composer').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (S.generating) { stop(); return; }
+  const t = input.value; if (!t.trim()) return;
+  input.value = ''; autosize(); $('#sendBtn').disabled = true;
+  send(t);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('#settingsModal').hidden) $('#settingsModal').hidden = true;
+  else if (S.generating) stop();
+});
+
+const SUGGESTIONS = [
+  'A landing page for a specialty coffee roaster in Bengaluru',
+  'A personal portfolio for a UI designer, with a project grid',
+  'A habit tracker app that saves to localStorage',
+  'An analytics dashboard with charts for an online store',
+];
+$('#chips').innerHTML = SUGGESTIONS.map(s => `<button class="chip" data-suggest="${esc(s)}">${ICON.spark}${esc(s.split(',')[0])}</button>`).join('');
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-suggest],[data-del],.proj,.file-chip,[data-tab],[data-device],[data-path],[data-tier],#copyBtn');
+  if (!t) return;
+  if (t.dataset.suggest) { input.value = t.dataset.suggest; autosize(); $('#sendBtn').disabled = false; input.focus(); return; }
+  if (t.dataset.del) { e.stopPropagation(); return deleteProject(t.dataset.del); }
+  if (t.classList.contains('proj')) return openProject(t.dataset.id);
+  if (t.classList.contains('file-chip')) { S.activeFile = t.dataset.file; setTab('code'); $('#app').classList.add('panel-open'); return; }
+  if (t.dataset.tab) return setTab(t.dataset.tab);
+  if (t.dataset.device) return setDevice(t.dataset.device);
+  if (t.dataset.tier) { document.querySelectorAll('#tierSeg button').forEach(b => b.classList.toggle('active', b === t)); return; }
+  if (t.dataset.path) { S.activeFile = t.dataset.path; return renderCode(); }
+  if (t.id === 'copyBtn') {
+    const c = S.live && S.live.path === S.activeFile ? S.live.content : S.cur.files[S.activeFile];
+    try {
+      navigator.clipboard.writeText(c || '').then(() => toast('Copied ' + S.activeFile), () => selectCode());
+    } catch (_) { selectCode(); }
+  }
+});
+function selectCode() {
+  const el = document.querySelector('#codeScroll .src');
+  if (!el) return;
+  const r = document.createRange(); r.selectNodeContents(el);
+  const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  toast('Selected — copy with your keyboard or long-press');
+}
+$('#projList').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList.contains('proj')) openProject(e.target.dataset.id); });
+
+$('#newBtn').onclick = newProject;
+$('#settingsBtn').onclick = openSettings;
+$('#modelChip').onclick = openSettings;
+$('#closeSettings').onclick = () => ($('#settingsModal').hidden = true);
+$('#settingsModal').onclick = (e) => { if (e.target.id === 'settingsModal') e.target.hidden = true; };
+$('#saveSettings').onclick = saveSettings;
+$('#themeBtn').onclick = () => {
+  const cur = lsGet('forge-theme', 'auto');
+  const next = THEMES[(THEMES.indexOf(cur) + 1) % 3];
+  applyTheme(next); toast('Theme: ' + next);
+};
+$('#menuBtn').onclick = () => $('#app').classList.add('side-open');
+$('#closeSide').onclick = $('#scrim').onclick = () => $('#app').classList.remove('side-open');
+$('#previewToggle').onclick = () => $('#app').classList.add('panel-open');
+$('#closePanel').onclick = () => $('#app').classList.remove('panel-open');
+$('#reloadBtn').onclick = () => { setProblems([]); reloadPreview(); };
+$('#zipBtn').onclick = downloadZip;
+$('#fixBtn').onclick = () => { if (S.problems.length && !S.generating) { S.fixAttempts = 0; send(fixPrompt(S.problems), 'fix'); } };
+$('#dismissProblems').onclick = () => setProblems([]);
+$('#ptitle').onclick = () => $('#problems').classList.toggle('collapsed');
+$('#title').onclick = () => {
+  if (!S.cur || S.generating) return;
+  const h = $('#title');
+  const box = document.createElement('input');
+  box.className = 'title-input'; box.id = 'titleInput'; box.value = S.cur.title; box.setAttribute('aria-label', 'Project name');
+  h.hidden = true; h.after(box); box.focus(); box.select();
+  const done = (save) => {
+    if (!box.isConnected) return;
+    const v = box.value.trim();
+    if (save && v && v !== S.cur.title) { S.cur.title = v.slice(0, 80); S.cur.updated = Date.now(); Store.save(S.cur); renderProjects(); }
+    h.textContent = S.cur.title; h.hidden = false; box.remove();
+  };
+  box.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(true); if (e.key === 'Escape') done(false); });
+  box.addEventListener('blur', () => done(true));
+};
+
+(() => {
+  const r = $('#resizer'); let dragging = false;
+  r.addEventListener('pointerdown', (e) => { dragging = true; r.classList.add('drag'); r.setPointerCapture(e.pointerId); $('#frame').style.pointerEvents = 'none'; });
+  r.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const w = Math.min(Math.max(window.innerWidth - e.clientX, 320), window.innerWidth - 264 - 360);
+    document.documentElement.style.setProperty('--panel-w', w + 'px');
+  });
+  const end = () => { dragging = false; r.classList.remove('drag'); $('#frame').style.pointerEvents = ''; };
+  r.addEventListener('pointerup', end); r.addEventListener('pointercancel', end);
+})();
+
+/* ======================= boot ======================= */
+(async function boot() {
+  applyTheme(lsGet('forge-theme', 'auto'));
+  setView(); reloadPreview(); updateModelChip();
+  const useCap = (n) => (window.claude && claude.use ? claude.use(n).catch(() => null) : Promise.resolve(null));
+  useCap('sample').then(s => { S.sample = s || null; updateModelChip(); });
+  useCap('downloads').then(d => { S.downloads = d || null; updateModelChip(); });
+  await Store.init();
+  S.projects = (await Store.list()).map(p => ({ ...p, messages: p.messages || [], files: p.files || {} }));
+  updateModelChip(); renderProjects();
+  const m = location.hash.match(/^#p-([a-f0-9]+)$/);
+  if (m && S.projects.some(p => p.id === m[1])) openProject(m[1]);
+})();
+</script>
